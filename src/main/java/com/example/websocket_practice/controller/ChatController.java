@@ -1,26 +1,23 @@
 package com.example.websocket_practice.controller;
 
-import com.example.websocket_practice.dto.ChatRoom;
-import com.example.websocket_practice.service.ChatService;
+import com.example.websocket_practice.dto.ChatMessage;
+import com.example.websocket_practice.dto.MessageType;
 import lombok.RequiredArgsConstructor;
+import org.springframework.messaging.handler.annotation.MessageMapping;
+import org.springframework.messaging.simp.SimpMessageSendingOperations;
 import org.springframework.web.bind.annotation.*;
-
-import java.util.List;
 
 @RequiredArgsConstructor
 @RestController
 @RequestMapping("/chat")
 public class ChatController {
 
-  private final ChatService chatService;
+  private final SimpMessageSendingOperations messagingTemplate;
 
-  @PostMapping
-  public ChatRoom createRoom(@RequestParam String name) {
-    return chatService.createRoom(name);
-  }
-
-  @GetMapping
-  public List<ChatRoom> findAllRoom() {
-    return chatService.findAllRoom();
+  @MessageMapping("/chat/message")
+  public void message(ChatMessage message){
+    if(MessageType.ENTER.equals(message.getMessageType()))
+      message.setMessage(message.getSender() + "님이 입장하셨습니다");
+    messagingTemplate.convertAndSend("/sub/chat/room/" + message.getRoomId(), message);
   }
 }

@@ -1,34 +1,28 @@
 package com.example.websocket_practice.dto;
 
-import com.example.websocket_practice.service.ChatService;
-import lombok.Builder;
-import lombok.Getter;
-import org.springframework.web.socket.WebSocketSession;
+import jakarta.persistence.Entity;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.Id;
+import lombok.*;
 
-import java.util.HashSet;
-import java.util.Set;
+import java.util.UUID;
 
 @Getter
+@Setter
+@NoArgsConstructor
+@Entity
 public class ChatRoom {
+
+  @Id
+  @GeneratedValue
+  private Long id;
+
   private String roomId;
   private String name;
-  private Set<WebSocketSession> sessions = new HashSet<>();
 
-  @Builder
-  public ChatRoom(String roomId, String name) {
-    this.roomId = roomId;
+  public ChatRoom(String name){
+    this.roomId = UUID.randomUUID().toString();
     this.name = name;
   }
 
-  public void handleActions(WebSocketSession session, ChatMessage chatMessage, ChatService chatService) {
-    if (chatMessage.getMessageType().equals(MessageType.ENTER)) {
-      sessions.add(session);
-      chatMessage.setMessage(chatMessage.getSender() + "님이 입장했습니다.");
-    }
-    sendMessage(chatMessage, chatService);
-  }
-
-  public <T> void sendMessage(T message, ChatService chatService) {
-    sessions.parallelStream().forEach(session -> chatService.sendMessage(session, message));
-  }
 }

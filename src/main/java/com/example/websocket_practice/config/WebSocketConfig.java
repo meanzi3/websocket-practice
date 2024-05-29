@@ -1,24 +1,33 @@
 package com.example.websocket_practice.config;
 
-import com.example.websocket_practice.handler.ChatHandler;
-import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.web.socket.config.annotation.EnableWebSocket;
-import org.springframework.web.socket.config.annotation.WebSocketConfigurer;
-import org.springframework.web.socket.config.annotation.WebSocketHandlerRegistry;
+import org.springframework.messaging.simp.config.MessageBrokerRegistry;
+import org.springframework.web.socket.config.annotation.*;
 
 @Configuration
-@RequiredArgsConstructor
-@EnableWebSocket // 웹 소켓 활성화
-public class WebSocketConfig implements WebSocketConfigurer {
+@EnableWebSocketMessageBroker // WebSocket 메시지 브로커를 활성화
+public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
 
-  private final ChatHandler chatHandler;
-
+  /**
+   * STOMP 프로토콜을 사용하는 WebSocket 엔드포인트를 등록
+   * @param registry
+   */
   @Override
-  public void registerWebSocketHandlers(WebSocketHandlerRegistry registry) {
-    // 핸들러 등록, endpoint 설정
-    // 모든 도메인에서의 접근 허용
-    // TODO : 보안상 실제 운영 환경에서는 수정 필요
-    registry.addHandler(chatHandler, "ws/chat").setAllowedOrigins("*");
+  public void registerStompEndpoints(StompEndpointRegistry registry) {
+    // /ws-stomp 경로를 통해 클라이언트가 WebSocket에 연결
+    // withSockJS() : SockJS를 활성화해 브라우저에서 WebSocket을 사용할 수 있도록
+    registry.addEndpoint("/ws-stomp").setAllowedOriginPatterns("*").withSockJS();
+  }
+
+  /**
+   * 메시지 브로커를 구성
+   * @param registry
+   */
+  @Override
+  public void configureMessageBroker(MessageBrokerRegistry registry) {
+    // 클라이언트가 메시지를 보낼 때 사용할 경로
+    registry.setApplicationDestinationPrefixes("/pub");
+    // /chatroom 및 /user 를 구족한 클라이언트에게 메시지 전달
+    registry.enableSimpleBroker("/sub");
   }
 }
