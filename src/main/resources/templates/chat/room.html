@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+  <title>Websocket Chat</title>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+  <!-- Bootstrap CSS -->
+  <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css">
+  <style>
+      [data-th-cloak] {
+          display: none;
+      }
+  </style>
+</head>
+<body>
+<div class="container" id="app" data-th-cloak>
+  <div class="row">
+    <div class="col-md-12">
+      <h3>채팅방 리스트</h3>
+    </div>
+  </div>
+  <div class="input-group mb-3">
+    <div class="input-group-prepend">
+      <label class="input-group-text">방제목</label>
+    </div>
+    <input type="text" class="form-control" id="roomName" onkeyup="handleKeyUp(event)">
+    <div class="input-group-append">
+      <button class="btn btn-primary" type="button" onclick="createRoom()">채팅방 개설</button>
+    </div>
+  </div>
+  <ul class="list-group" id="chatRoomList">
+    <li class="list-group-item list-group-item-action" th:each="room : ${rooms}" th:text="${room.name}" th:attr="onclick='enterRoom(\'' + ${room.roomId} + '\')'"></li>
+  </ul>
+</div>
+
+<!-- JavaScript -->
+<script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+<script src="https://code.jquery.com/jquery-3.3.1.slim.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.7/umd/popper.min.js"></script>
+<script src="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/js/bootstrap.min.js"></script>
+<script>
+    document.addEventListener("DOMContentLoaded", function() {
+        findAllRoom();
+    });
+
+    function handleKeyUp(event) {
+        if (event.key === 'Enter') {
+            createRoom();
+        }
+    }
+
+    function findAllRoom() {
+        axios.get('/chat/rooms')
+            .then(response => {
+                const chatRoomList = document.getElementById('chatRoomList');
+                chatRoomList.innerHTML = ''; // 기존 목록 비우기
+                response.data.forEach(item => {
+                    const listItem = document.createElement('li');
+                    listItem.className = 'list-group-item list-group-item-action';
+                    listItem.textContent = item.name;
+                    listItem.onclick = () => enterRoom(item.roomId);
+                    chatRoomList.appendChild(listItem);
+                });
+            })
+            .catch(error => {
+                console.error('Error fetching chat rooms:', error);
+            });
+    }
+
+    function createRoom() {
+        const roomNameInput = document.getElementById('roomName');
+        const roomName = roomNameInput.value.trim();
+
+        if (roomName === '') {
+            alert("방 제목을 입력해 주십시요.");
+            return;
+        }
+
+        const params = new URLSearchParams();
+        params.append("name", roomName);
+
+        axios.post('/chat/room', params)
+            .then(response => {
+                alert(response.data.name + "방 개설에 성공하였습니다.");
+                roomNameInput.value = '';
+                findAllRoom();
+            })
+            .catch(() => {
+                alert("채팅방 개설에 실패하였습니다.");
+            });
+    }
+
+    function enterRoom(roomId) {
+        const sender = prompt('대화명을 입력해 주세요.');
+        if (sender !== "") {
+            localStorage.setItem('wschat.sender', sender);
+            localStorage.setItem('wschat.roomId', roomId);
+            window.location.href = "/chat/room/enter/" + roomId;
+        }
+    }
+</script>
+</body>
+</html>

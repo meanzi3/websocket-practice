@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+  <title>Websocket ChatRoom</title>
+  <!-- Required meta tags -->
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+
+  <!-- Bootstrap CSS -->
+  <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css">
+  <style>
+      [v-cloak] {
+          display: none;
+      }
+  </style>
+</head>
+<body>
+<div class="container" id="app" th:v-cloak>
+  <div>
+    <h2 th:text="${room.name}"></h2>
+  </div>
+  <div class="input-group">
+    <div class="input-group-prepend">
+      <label class="input-group-text">내용</label>
+    </div>
+    <input id="messageInput" type="text" class="form-control" th:placeholder="'Message to ' + ${room.name}" onkeypress="if(event.keyCode === 13) sendMessage(event)">
+    <div class="input-group-append">
+      <button class="btn btn-primary" type="button" onclick="sendMessage()">보내기</button>
+    </div>
+  </div>
+  <ul id="messageList" class="list-group">
+
+  </ul>
+  <div></div>
+</div>
+<!-- JavaScript -->
+<script src="/webjars/sockjs-client/1.1.2/sockjs.min.js"></script>
+<script src="/webjars/stomp-websocket/2.3.3-1/stomp.min.js"></script>
+<script th:inline="javascript">
+    var roomId = /*[[${roomId}]]*/ '';
+    var sender = localStorage.getItem('wschat.sender');
+    var messages = document.getElementById('messageList');
+
+    var sock = new SockJS("/ws-stomp");
+    var ws = Stomp.over(sock);
+    var reconnect = 0;
+
+    function sendMessage(event) {
+            var messageInput = document.getElementById('messageInput');
+            var message = messageInput.value.trim();
+            if (message !== '') {
+                ws.send("/pub/chat/message", {}, JSON.stringify({
+                    messageType: 'TALK',
+                    roomId: roomId,
+                    sender: sender,
+                    message: message
+                }));
+                messageInput.value = '';
+            }
+    }
+
+    function recvMessage(recv) {
+        var message = document.createElement('li');
+        message.className = 'list-group-item';
+        message.textContent = recv.sender + ' - ' + recv.message;
+        messages.insertBefore(message, messages.firstChild);
+    }
+
+    // 환영 메시지 수신 처리
+    function recvWelcomeMessage(recv) {
+        var welcomeMessage = document.createElement('li');
+        welcomeMessage.className = 'list-group-item';
+        welcomeMessage.textContent = '[입장] ' + recv.message;
+        messages.insertBefore(welcomeMessage, messages.firstChild);
+    }
+
+    // 서버에서 환영 메시지를 수신하면 recvWelcomeMessage 함수 호출
+    ws.connect({}, function (frame) {
+        ws.subscribe("/sub/chat/room/" + roomId, function (message) {
+            var recv = JSON.parse(message.body);
+            if (recv.messageType === 'ENTER') {
+                recvWelcomeMessage(recv);
+            } else {
+                recvMessage(recv);
+            }
+        });
+        ws.send("/pub/chat/message", {}, JSON.stringify({
+            messageType: 'ENTER',
+            roomId: roomId,
+            sender: sender
+        }));
+    }, function (error) {
+        if (reconnect++ <= 5) {
+            setTimeout(function () {
+                console.log("connection reconnect");
+                sock = new SockJS("/ws-stomp");
+                ws = Stomp.over(sock);
+                ws.connect();
+            }, 10 * 1000);
+        }
+    });
+</script>
+</body>
+</html>
